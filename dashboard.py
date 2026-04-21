@@ -20,7 +20,7 @@ def _find_claude_projects_dir():
     if not base.exists():
         return None
     # prefer dir matching current user's home
-    slug = str(HOME).replace("/", "-").lstrip("-")
+    slug = str(HOME).replace("/", "-")
     candidate = base / slug
     if candidate.exists():
         return candidate
