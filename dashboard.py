@@ -129,16 +129,16 @@ def get_sessions(key, force_rl=False):
     return fn()
 
 def _get_openclaw():
-    if not shutil.which("openclaw"):
-        return {"ok": False, "error": "not_installed"}
+    if not OPENCLAW_SESSIONS_FILE.exists():
+        if not shutil.which("openclaw"):
+            return {"ok": False, "error": "not_installed"}
+        return {"ok": True, "sessions": []}
     try:
-        r = subprocess.run(["openclaw", "sessions", "--json"],
-                           capture_output=True, text=True, timeout=5)
-        data = json.loads(r.stdout)
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        raw = json.loads(OPENCLAW_SESSIONS_FILE.read_text())
         sessions = []
-        for s in data.get("sessions", []):
-            key = s.get("key", "")
-            age_s = s.get("ageMs", 0) // 1000
+        for key, s in raw.items():
+            age_s = max(0, (now_ms - s.get("updatedAt", now_ms))) // 1000
             sessions.append(_session(
                 sid=key, cwd=key.split(":")[-1][:24],
                 model=s.get("model", "–"),
@@ -147,6 +147,7 @@ def _get_openclaw():
                 ctx=s.get("contextTokens", 272000),
                 last_ts=_fmt_age(age_s), last_sort=str(age_s),
             ))
+        sessions.sort(key=lambda s: s["age_s"])
         return {"ok": True, "sessions": sessions}
     except Exception as e:
         return {"ok": False, "error": str(e)}
