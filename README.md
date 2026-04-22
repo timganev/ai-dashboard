@@ -1,6 +1,6 @@
 # AI Dashboard
 
-Локален уеб дашборд за мониторинг на **Claude Code** и **OpenClaw** сесии в реално време.
+Локален уеб дашборд за мониторинг на **Claude Code**, **OpenClaw**, **Codex CLI** и **GitHub Copilot CLI** сесии.
 
 ![Python](https://img.shields.io/badge/python-3.8+-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -8,71 +8,43 @@
 
 | Панел | Информация |
 |-------|-----------|
-| **OpenClaw сесии** | Тип (Telegram/Slack/Direct), ключ, последна активност, модел, токени + прогрес бар |
-| **Claude Code сесии** | Session ID, директория, модел, токени + прогрес бар, последна активност |
+| **OpenClaw** | Сесии, модел, токени + прогрес бар, последна активност |
+| **Claude Code** | Session ID, директория, модел, токени, rate limits (5ч лимит + reset) |
+| **Codex CLI** | Session ID, директория, модел, токени, rate limits (5ч + седмичен + план) |
+| **GitHub Copilot CLI** | Session ID, директория, модел, токени, последна активност |
 
-- Токен барът е **зелен** (<30%), **жълт** (30–50%), **червен** (>50%)
-- Бутон **⌨** на всеки ред — отваря терминал директно в сесията
-- Бутон **✕** — изтрива сесията
-- Авто-обновяване на всеки 30 секунди
+### Функционалности
+
+- 🔍 **Търсене** — глобален филтър по всички панели
+- ↕️ **Сортиране** — клик на заглавие на колона (asc/desc)
+- 📊 **Rate limits** — Claude (статус + reset) и Codex (% + reset + план)
+- ⌨️ **Терминал** — отваря сесията директно в Terminal.app / gnome-terminal
+- ✕ **Изтриване** — трие сесии за Claude, Codex, Copilot
+- 🔄 **Auto-refresh** — на 30 сек (от кеш); бутон „Обнови" за свежи лимити
 
 ## Изисквания
 
 - Python 3.8+ (без допълнителни пакети — само stdlib)
-- [OpenClaw](https://openclaw.ai) — за OpenClaw панела
-- `gnome-terminal` — за бутона "Отвори в терминал" (на Linux)
+- macOS или Linux
+- Поне един от: `claude`, `openclaw`, `codex`, `gh` (Copilot)
 
-> На macOS замени `gnome-terminal` с `Terminal` или `iTerm2` — виж [Конфигурация](#конфигурация).
-
-## Инсталация
+## Стартиране
 
 ```bash
-git clone https://github.com/timganev/ai-dashboard
-cd ai-dashboard
-python3 dashboard.py
-```
-
-После отвори браузъра на: **http://localhost:7788**
-
-## Конфигурация
-
-В горната част на `dashboard.py` има няколко константи:
-
-```python
-# Порт на дашборда
-port = 7788
-
-# Директория с Claude Code сесии (смени username-а)
-PROJECTS_DIR = Path.home() / ".claude" / "projects" / "-home-USERNAME"
-```
-
-### macOS — смяна на терминал
-
-Намери функцията `launch_terminal` и смени командата:
-
-```python
-# macOS с Terminal.app
-subprocess.Popen(["open", "-a", "Terminal", "."])
-
-# macOS с iTerm2
-subprocess.Popen(["osascript", "-e",
-    f'tell app "iTerm2" to create window with default profile command "{cmd}"'])
-```
-
-### Linux с различен терминал
-
-```python
-# xterm
-subprocess.Popen(["xterm", "-e", f"bash -c '{cmd}; exec bash'"])
-
-# kitty
-subprocess.Popen(["kitty", "bash", "-c", f"{cmd}; exec bash"])
-```
-
-## Използване
-
-```
 python3 dashboard.py
 # Dashboard: http://localhost:7788
 # Ctrl+C за спиране
 ```
+
+Портът може да се смени: `PORT=8080 python3 dashboard.py`
+
+## Как работят Rate Limits
+
+| CLI | Метод | Какво показва |
+|-----|-------|---------------|
+| **Claude** | `claude -p ok --no-session-persistence` → парсва `rate_limit_event` | Статус (✅/⚠️/❌) + кога се нулира |
+| **Codex** | `codex app-server` → WebSocket JSON-RPC | % остатък (5ч + седмичен) + план |
+
+- **Нормално зареждане** (~0.5 сек): чете от локален кеш файл
+- **Бутон „Обнови"** (~5-8 сек): вика API-тата за свежи данни
+- Кеш файлове: `~/.claude/.rate_limits_cache.json`, `~/.codex/.rate_limits_cache.json`
